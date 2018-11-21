@@ -12,6 +12,8 @@ import sys
 import click
 
 import numbers
+import png
+from array import array
 
 SUPPORTED_3DL_BIT_DEPTHS = [8, 10]
 SUPPORTED_IMAGE_FILETYPES = ['png']
@@ -88,48 +90,166 @@ def write_png(path, data, width, height, bit_depth):
 
 ########################################
 
+def uniform_intervals(end, samples, floating_point=False, exclusive_end=True):
+    """
+    Make `samples` uniformly distributed numbers from 0 to `end`.
+    """
+    dist = end/float(samples-1)
+    values = [dist*i for i in range(samples)]
+    if not floating_point:
+        values = [int(round(v)) for v in values]
+        if exclusive_end:
+            values[-1] = values[-1]-1
+        for idx in range(1, samples):
+            actual_dist = values[idx] - values[idx-1]
+            error_frac = abs(float(actual_dist)/dist - 1.0)
+            if error_frac > 0.03:
+                raise ValueError('input parameters to uniform_intervals would yield a non-uniform distribution.')
+    return values
+
+def scale_color_value(color_value, scaling_factor):
+    if scaling_factor is not None:
+        color_value = array(
+            color_value.typecode,
+            ch*self.scaling_factor for ch in color_value,
+        )
+    return color_value
+
+def index_3D(data, size, r_idx, g_idx, b_idx):
+    """
+    Index a flattened 3-channel 3D cubic matrix.
+    """
+    idx = r + size * g + size^2 * b
+    return data[idx:idx+3]
+    
+
 class ColorLUT(object):
     """
     """
-    def __init__(self, data, sample_count=None, input_domain=None, flip_r_b=False):
-        if not isinstance(data, list) or not isinstance(data[0], numbers.Number):
+    def __init__(self, data, sample_count=None, input_domain=None, red_increments_fastest=True):
+        if not isinstance(data, array) or not isinstance(data[0], numbers.Number):
             raise ValueError('data parameter should be a flat list of numbers.')
         if not isinstance(sample_count, int):
             raise ValueError('sample_count parameter should be of type int.')
-        if not isinstance(input_domain, tuple) or not isinstance(input_domain[0], numbers.Number) or len(input_domain) != 3:
-            raise ValueError('input_domain parameter should be a tuple of input domains for all 3 channels.')
+        if not isinstance(input_domain, numbers.Number):
+            raise ValueError('input_domain parameter should be a number.')
+        if isinstance(input_domain, numbers.Real):
+            if data.typecode not in 'fd':
+                raise ValueError('input_domain parameter should have the same type as the data.')
+        else:
+            if data.typecode not in 'bBhHiIlL':
+                raise ValueError('input_domain parameter should have the same type as the data.')
         if not len(data) == 3 * (sample_count**3): 
-            raise ValueError('The sample invervals do not appear to match the matrix dimensions.')
+            raise ValueError('The sample intervals do not appear to match the matrix dimensions.')
         self.data = data
         self.sample_count = sample_count
         self.input_domain = input_domain
-        if flip_r_b:
-            _flip_r_b()
+        self.red_increments_fastest = red_increments_fastest
 
-    def _flip_r_b(self):
+    #@property
+    #def input_invervals(self):
+    #    if hasattr(self, '_input_intervals'):
+    #        return self._input_intervals
+    #    self._input_intervals = [i*self.input_domain for i in range(self.sample_count)]
+
+    @property
+    def sample_distance(self):
+        if hasattr(self, '_sample_distance'):
+            return self._sample_distance
+        self._sample_distance = self.input_domain / float(self.sample_count-1)
+
+    def get_color_value_from_index(self, r_idx, g_idx, b_idx):
         """
+        Determine the output color value given 3D matrix indices.
+        """
+        if not self.red_increments_fastest:
+            r_idx, b_idx = b_idx, r_idx
+        return index_3D(self.data, self.sample_count, r_idx, g_idx, b_idx)
+
+    def get_interpolated_color_value(self, r_input, g_input, b_input):
+        """
+        Determine the output color value using trilinear interpolation.
+ 
+        Algorithm copied from https://en.wikipedia.org/wiki/Trilinear_interpolation
+        """
+        # On wikipedia, the equations for v_d were:
+        #
+        #   r_d = ( r - r_0 ) / ( r_1 - r_0 )
+        #   g_d = ( g - g_0 ) / ( g_1 - g_0 )
+        #   b_d = ( b - b_0 ) / ( b_1 - b_0 )
+        #
+        # but v−v_0 is equivalent to math.remainder(v, self.sample_distance),
+        # and v_0−v_1 is equivalent to self.sample_distance.
+        r_d = math.remainder(r_input, self.sample_distance) / self.sample_distance
+        g_d = math.remainder(g_input, self.sample_distance) / self.sample_distance
+        b_d = math.remainder(b_input, self.sample_distance) / self.sample_distance
+
+        r_0_idx = math.trunc(r_input/self.sample_distance)
+        g_0_idx = math.trunc(g_input/self.sample_distance)
+        b_0_idx = math.trunc(b_input/self.sample_distance)
+
+        r_1_idx = r_0_idx + 1
+        g_1_idx = g_0_idx + 1
+        b_1_idx = b_0_idx + 1
+
+        c_000 = self.get_color_value_from_index(r_0_idx, g_0_idx, b_0_idx)
+        c_001 = self.get_color_value_from_index(r_0_idx, g_0_idx, b_1_idx)
+        c_010 = self.get_color_value_from_index(r_0_idx, g_1_idx, b_0_idx)
+        c_011 = self.get_color_value_from_index(r_0_idx, g_1_idx, b_1_idx)
+        c_100 = self.get_color_value_from_index(r_1_idx, g_0_idx, b_0_idx)
+        c_101 = self.get_color_value_from_index(r_1_idx, g_0_idx, b_1_idx)
+        c_110 = self.get_color_value_from_index(r_1_idx, g_1_idx, b_0_idx)
+        c_111 = self.get_color_value_from_index(r_1_idx, g_1_idx, b_1_idx)
+
+        c_00 = c_000*(1-r_d) + c_100*r_d
+        c_01 = c_001*(1-r_d) + c_101*r_d
+        c_10 = c_010*(1-r_d) + c_110*r_d
+        c_11 = c_011*(1-r_d) + c_111*r_d
+
+        c_0 = c_00*(1-g_d) + c_10*g_d
+        c_1 = c_01*(1-g_d) + c_11*g_d
+
+        c = c_0*(1-b_d) + c_1*b_d
+
+        return c
+
+    def get_values_translated(
+        self,
+        increment_red_fastest=True,
+        floating_point_output=False,
+        output_sample_count=None,
+        output_domain=None,
+        ):
+        """
+        Make a generator of color values in sequence.
+
         Reorder the data values in order to make the red/blue channels
         increment most/least rapidly, or least/most rapidly, whichever is
-        opposite to the previous state..
+        opposite to the previous state.
 
         Some Color LUT formats may increment the red channel most rapidly,
         others the blue channel.  This function helps to convert between the
-        two styles of representing 3D matricies in memory.
+        two styles of representing 3D matrices in memory.
         """
-        data_flipped = array(self.data.typecode)
-        for x in range(self.sample_count):
-            for y in range(self.sample_count):
-                for z in range(self.sample_count):
-                    idx = x + self.sample_count * y + self.sample_count^2 * z
-                    value3D = self.data[idx:idx+3]
-                    data_flipped.extend(value3D)
-        del self.data
-        self.data = data_flipped
+        return_flipped = self.red_increments_fastest ^ increment_red_fastest
+        if return_flipped:
+            for x in range(self.sample_count):
+                for y in range(self.sample_count):
+                    for z in range(self.sample_count):
+                        idx = x + self.sample_count * y + self.sample_count^2 * z
+                        color_value = convert_color_value()
+                        color_value = scale_color_value(self.data[idx:idx+3], self._domain_scaling_factor)
+                        yield color_value
+        else:
+            for i3 in self.sample_count**3:
+                idx = i3*3
+                color_value = scale_color_value(self.data[idx:idx+3], self._domain_scaling_factor)
+                yield color_value
 
     @classmethod
     def from_haldclut(cls, src):
-        png.Reader(filename=src)
-        width, height, pixels, meta = png.read_flat()
+        src_png = png.Reader(filename=src)
+        width, height, pixels, meta = src_png.read_flat()
         if 'palette' in meta:
             raise ValueError('Then given PNG file uses a color palette. Refusing.')
         if 'gamma' in meta:
@@ -146,8 +266,28 @@ class ColorLUT(object):
         if width != height or not width_is_power_of_two:
             raise ValueError('The given PNG file does not have appropriate Hald CLUT dimensions. Refusing.')
         sample_count = int(round((width**2)**(1./3)))
-        input_domain = 2**meta['bitdepth']
-        return cls(data, sample_count, input_domain)
+        input_domain = 2**meta['bitdepth']-1
+        return cls(data, sample_count=sample_count, input_domain=input_domain)
+
+    @classmethod
+    def from_3dl(cls, src):
+        raise NotImplementedError()
+
+    def to_haldclut(self):
+        raise NotImplementedError()
+
+
+    def to_3dl(cls, dest):
+        sample_intervals = uniform_intervals(self.input_domain, self.sample_count)
+        sample_intervals = ' '.join(str(v) for v in sample_intervals)
+        color_value_gen = self.get_values_translated(increment_red_fastest=False)
+        with open(dest, 'w') as destfile:
+            destfile.write(' '.join(sample_intervals))
+            destfile.write('\n')
+            for color in color_value_gen:
+                line = ' '.join(str(v) for v in color)
+                destfile.write(line)
+                destfile.write('\n')
 
 
 @click.command()

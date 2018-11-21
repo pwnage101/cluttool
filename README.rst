@@ -33,6 +33,15 @@ Supported color LUT formats:
 * 3D LUT (.3dl)
 * Cube LUT (.cube)
 
+Similar Tools
+-------------
+
+3DLutConverter is another color LUT converter with similar goals:
+
+https://github.com/spoilt-exile/3DLutConverter
+
+However, it only supports 
+
 References:
 -----------
 
