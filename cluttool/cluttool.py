@@ -95,6 +95,9 @@ class Value3D(object):
     def __init__(self, components):
         self.components = tuple(components)
 
+    def __iter__(self):
+        return iter(self.components)
+
     def __add__(self, y):
         return Value3D(
             (
@@ -115,6 +118,7 @@ class Value3D(object):
 
     def __rmul__(self, x):
         return self.__mul__(x)
+
 
 def index_3d(data, size, r_idx, g_idx, b_idx):
     """
@@ -210,7 +214,6 @@ class ColorLUT(object):
     def get_values_translated(
             self,
             increment_red_fastest=True,
-            floating_point_output=False,
             output_sample_count=None,
             output_domain=None,
         ):
@@ -263,18 +266,6 @@ class ColorLUT(object):
                 for output_value in output_values
             )
 
-        #FIXME
-        if floating_point_output
-            output_values = (
-                output_value.components
-                for output_value in output_values
-            )
-        else:
-            output_values = (
-                output_value.components
-                for output_value in output_values
-            )
-
         return output_values
 
     @classmethod
@@ -310,12 +301,16 @@ class ColorLUT(object):
     def to_3dl(self, dest):
         sample_intervals = uniform_intervals(self.input_domain, self.sample_count)
         sample_intervals = ' '.join(str(v) for v in sample_intervals)
-        color_value_gen = self.get_values_translated(increment_red_fastest=False)
+        color_value_gen = self.get_values_translated(
+            increment_red_fastest=False,
+            output_sample_count=self.sample_count,
+            output_domain=self.input_domain,
+        )
         with open(dest, 'w') as destfile:
             destfile.write(' '.join(sample_intervals))
             destfile.write('\n')
             for color in color_value_gen:
-                line = ' '.join(str(v) for v in color)
+                line = ' '.join('{:.0f}'.format(v) for v in color)
                 destfile.write(line)
                 destfile.write('\n')
 
