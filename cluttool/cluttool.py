@@ -9,13 +9,12 @@
 # - 3D LUT (3DL) reference: http://download.autodesk.com/us/systemdocs/pdf/lustre_color_management_user_guide.pdf#page=14
 
 import sys
-import click
-
 import numbers
-import png
 from array import array
 from decimal import Decimal
 import math
+import png
+import click
 
 SUPPORTED_3DL_BIT_DEPTHS = [8, 10]
 SUPPORTED_IMAGE_FILETYPES = ['png']
@@ -66,7 +65,7 @@ def write_png(path, data, width, height, bit_depth):
     writer.write_array(path, data)
 
 
-def uniform_intervals(end, samples, floating_point=False, exclusive_end=True):
+def uniform_intervals(end, samples, floating_point=False):
     """
     Make `samples` uniformly distributed numbers from 0 to `end`.
     """
@@ -74,12 +73,10 @@ def uniform_intervals(end, samples, floating_point=False, exclusive_end=True):
     values = [dist*i for i in range(samples)]
     if not floating_point:
         values = [int(round(v)) for v in values]
-        if exclusive_end:
-            values[-1] = values[-1]-1
         for idx in range(1, samples):
             actual_dist = values[idx] - values[idx-1]
             error_frac = abs(float(actual_dist)/dist - 1.0)
-            if error_frac > 0.03:
+            if error_frac > 0.07:
                 raise ValueError('input parameters to uniform_intervals would yield a non-uniform distribution.')
     return values
 
@@ -94,6 +91,9 @@ class Value3D(object):
 
     def __init__(self, components):
         self.components = tuple(components)
+
+    def __str__(self):
+        return 'Value3D({},{},{})'.format(*self.components)
 
     def __iter__(self):
         return iter(self.components)
@@ -124,7 +124,10 @@ def index_3d(data, size, r_idx, g_idx, b_idx):
     """
     Index a flattened 3-channel 3D cubic matrix.
     """
-    idx = r_idx + size * g_idx + size^2 * b_idx
+    idx = (r_idx) + (size * g_idx) + (size**2 * b_idx)
+    idx *= 3
+    click.echo('index_3d(): size, r_idx, g_idx, b_idx = {},{},{},{}'.format(size, r_idx, g_idx, b_idx))
+    click.echo('index_3d(): idx = {}'.format(idx))
     return data[idx:idx+3]
 
 
@@ -138,11 +141,11 @@ class ColorLUT(object):
             raise ValueError('sample_count parameter should be of type int.')
         if not isinstance(input_domain, numbers.Number):
             raise ValueError('input_domain parameter should be a number.')
-        if isinstance(input_domain, numbers.Real):
-            if data.typecode not in 'fd':
+        if isinstance(input_domain, numbers.Integral):
+            if data.typecode not in 'bBhHiIlL':
                 raise ValueError('input_domain parameter should have the same type as the data.')
         else:
-            if data.typecode not in 'bBhHiIlL':
+            if data.typecode not in 'fd':
                 raise ValueError('input_domain parameter should have the same type as the data.')
         if not len(data) == 3 * (sample_count**3):
             raise ValueError('The sample intervals do not appear to match the matrix dimensions.')
@@ -162,7 +165,10 @@ class ColorLUT(object):
         """
         if not self.red_increments_fastest:
             r_idx, b_idx = b_idx, r_idx
-        return Value3D(index_3d(self.data, self.sample_count, r_idx, g_idx, b_idx))
+        color_value = Value3D(index_3d(self.data, self.sample_count, r_idx, g_idx, b_idx))
+        click.echo('get_color_value_from_index(): r_idx,g_idx,b_idx = {},{},{}'.format(r_idx,g_idx,b_idx))
+        click.echo('get_color_value_from_index(): color_value = {}'.format(str(color_value)))
+        return color_value
 
     def get_interpolated_color_value(self, r_input, g_input, b_input):
         """
@@ -247,7 +253,7 @@ class ColorLUT(object):
 
         if interpolate_output:
             input_values = (
-                Value3D(idx)*self.input_domain/float(output_sample_count-1))
+                Value3D(idx)*self.input_domain/float(output_sample_count-1)
                 for idx in indexes
             )
             output_values = (
@@ -289,63 +295,93 @@ class ColorLUT(object):
             raise ValueError('The given PNG file does not have appropriate Hald CLUT dimensions. Refusing.')
         sample_count = int(round((width**2)**(1./3)))
         input_domain = 2**meta['bitdepth']-1
+        click.echo('from_haldclut(): PNG dimensions = {}x{}'.format(width, height))
+        click.echo('from_haldclut(): PNG bit depth = {}'.format(meta['bitdepth']))
+        click.echo('from_haldclut(): PNG array typecode = {}'.format(data.typecode))
+        click.echo('from_haldclut(): Inferred input domain = {}'.format(input_domain))
+        click.echo('from_haldclut(): Inferred 3D matrix dimensions = {0}x{0}x{0}'.format(sample_count))
         return cls(data, sample_count=sample_count, input_domain=input_domain)
 
     @classmethod
     def from_3dl(cls, src):
         raise NotImplementedError()
 
-    def to_haldclut(self):
+    def write_haldclut(self):
         raise NotImplementedError()
 
-    def to_3dl(self, dest):
-        sample_intervals = uniform_intervals(self.input_domain, self.sample_count)
-        sample_intervals = ' '.join(str(v) for v in sample_intervals)
+    def write_3dl(self, dest):
+        output_domain = 1023
+        sample_intervals = uniform_intervals(output_domain, self.sample_count)
         color_value_gen = self.get_values_translated(
             increment_red_fastest=False,
             output_sample_count=self.sample_count,
-            output_domain=self.input_domain,
+            output_domain=output_domain,
         )
         with open(dest, 'w') as destfile:
-            destfile.write(' '.join(sample_intervals))
+            destfile.write('   '.join(str(v) for v in sample_intervals))
             destfile.write('\n')
             for color in color_value_gen:
                 line = ' '.join('{:.0f}'.format(v) for v in color)
                 destfile.write(line)
                 destfile.write('\n')
 
+    def write_cube(self, dest):
+        output_domain = 1.0
+        output_sample_count = self.sample_count
+        color_value_gen = self.get_values_translated(
+            output_sample_count=self.sample_count,
+            output_domain=output_domain,
+        )
+        with open(dest, 'w') as destfile:
+            destfile.write('LUT_3D_SIZE {}'.format(output_sample_count))
+            destfile.write('\n')
+            for color in color_value_gen:
+                line = ' '.join('{:.7g}'.format(v) for v in color)
+                destfile.write(line)
+                destfile.write('\n')
+
 
 @click.command()
-@cli.argument(
+@click.argument(
     'src',
-    type=click.Path(exists=True, dir_okay=False)
+    type=click.Path(exists=True, dir_okay=False),
+)
+@click.argument(
+    'dest',
+    type=click.Path(exists=False),
 )
 @click.option(
-    'type', '--dest-type',
-    help='Type of color LUT.',
-    type=click.Choice(['3dl', 'haldclut']),
-    required=True,
+    '--dest-type',
+    help='Type of color LUT.  If this argument is not provided, the output type is inferred from the destination filename extension.',
+    type=click.Choice(['3dl', 'haldclut', 'cube']),
 )
-def cli(src, dest_type):
+def cli(src, dest, dest_type):
     if not src:
-        raise ValueError('Please specify a source LUT')
-    ext = src.lower().split('.')[-1]
-    if ext == 'png':
+        raise ValueError('Please specify a source LUT file.')
+    if not dest:
+        raise ValueError('Please specify a destination LUT file.')
+    if not dest_type:
+        dest_type = dest.lower().split('.')[-1]
+        if dest_type == 'png':
+            dest_type = 'haldclut'
+    dest_type = dest_type.lower()
+    src_ext = src.lower().split('.')[-1]
+    if src_ext == 'png':
         clut = ColorLUT.from_haldclut(src)
-    elif ext == '3dl':
+    elif src_ext == '3dl':
         clut = ColorLUT.from_3dl(src)
-    elif ext == 'cube':
+    elif src_ext == 'cube':
         clut = ColorLUT.from_haldclut(src)
     else:
-        raise ValueError('Not an appropriate Color LUT file type: {}'.format(ext))
+        raise ValueError('Not an appropriate Color LUT file type: {}'.format(src_ext))
     if dest_type == 'haldclut':
-        clut.write_haldclut()
+        clut.write_haldclut(dest)
     elif dest_type == '3dl':
-        clut.write_3dl()
+        clut.write_3dl(dest)
     elif dest_type == 'cube':
-        clut.write_cube()
+        clut.write_cube(dest)
     else:
-        raise ValueError('Not an appropriate Color LUT file type: {}'.format(ext))
+        raise ValueError('Not an appropriate Color LUT file type: {}'.format(dest_type))
 
 
 if __name__ == '__main__':
