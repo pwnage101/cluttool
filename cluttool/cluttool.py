@@ -16,34 +16,6 @@ import math
 import png
 import click
 
-SUPPORTED_3DL_BIT_DEPTHS = [8, 10]
-SUPPORTED_IMAGE_FILETYPES = ['png']
-
-# The 3DL format begins with a list of values (i.e. sampling intervals) from
-# minimum to maximum (i.e. 0-255 for 8-bit depth) which are uniformly
-# distributed, describing the "segmentation".  The specification does not state
-# how many segments should be allowed, but it does offer an example header for
-# 10-bit values using 17 sampling intervals (copied verbatim below).  For 8-bit
-# values, the segmentation is perfectly uniform if we instead use 16 sampling
-# intervals, so that is what I've decided to use for this tool.
-#
-# According to a random source on the internet, LUT interval counts anywhere
-# from 5 to 64 are common, but 17 is usually good enough when using a good
-# interpolation method.
-#
-# More info:
-# http://download.autodesk.com/us/systemdocs/pdf/lustre_color_management_user_guide.pdf#page=14
-#
-HEADER_3DL_INTERVALS = {
-    8:  '0 17 34 51 68 85 102 119 136 153 170 187 204 221 238 255',
-    10: '0 64 128 192 256 320 384 448 512 576 640 704 768 832 896 960 1023',
-}
-
-# The higher this number, the wider the aspect ratio of the identity image.
-# The current value of 4 tends to make the resulting image square when using
-# the 16- or 17-sample headers above.
-IDENTITY_IMAGE_COLUMN_MULTIPLIER = 4
-
 
 def fatal_error(message):
     """
@@ -80,12 +52,6 @@ def uniform_intervals(end, samples, floating_point=False):
                 raise ValueError('input parameters to uniform_intervals would yield a non-uniform distribution.')
     return values
 
-def scaled_color_value(color_value, scaling_factor):
-    return (
-        color_value[0]*scaling_factor,
-        color_value[2]*scaling_factor,
-        color_value[3]*scaling_factor,
-    )
 
 class Value3D(object):
 
