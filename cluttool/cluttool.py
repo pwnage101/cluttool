@@ -158,14 +158,31 @@ class ColorLUT(object):
         #   b_d = ( b - b_0 ) / ( b_1 - b_0 )
         #
         # but v-v_0 is equivalent to math.remainder(v, self.sample_distance),
-        # and v_1-v_0 is equivalent to self.sample_distance.
-        r_d = (Decimal(r_input) % Decimal(self.sample_distance)) / self.sample_distance
-        g_d = (Decimal(g_input) % Decimal(self.sample_distance)) / self.sample_distance
-        b_d = (Decimal(b_input) % Decimal(self.sample_distance)) / self.sample_distance
+        # and v_1-v_0 is equivalent to self.sample_distance,
+        # therefore, v_d = float(Decimal(v_input) % Decimal(self.sample_distance)) / self.sample_distance.
+        #
+        # Furthermore, we need to handle the border case where v_input == the
+        # maximum possible value (i.e. self.input_domain).
+        if r_input == self.input_domain:
+            r_0_idx = self.sample_count - 2
+            r_d = 1
+        else:
+            r_0_idx = math.trunc(r_input/self.sample_distance)
+            r_d = float(Decimal(r_input) % Decimal(self.sample_distance)) / self.sample_distance
 
-        r_0_idx = math.trunc(r_input/self.sample_distance)
-        g_0_idx = math.trunc(g_input/self.sample_distance)
-        b_0_idx = math.trunc(b_input/self.sample_distance)
+        if g_input == self.input_domain:
+            g_0_idx = self.sample_count - 2
+            g_d = 1
+        else:
+            g_0_idx = math.trunc(g_input/self.sample_distance)
+            g_d = float(Decimal(g_input) % Decimal(self.sample_distance)) / self.sample_distance
+
+        if b_input == self.input_domain:
+            b_0_idx = self.sample_count - 2
+            b_d = 1
+        else:
+            b_0_idx = math.trunc(b_input/self.sample_distance)
+            b_d = float(Decimal(b_input) % Decimal(self.sample_distance)) / self.sample_distance
 
         r_1_idx = r_0_idx + 1
         g_1_idx = g_0_idx + 1
