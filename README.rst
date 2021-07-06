@@ -29,14 +29,21 @@ freely create your own color LUTs for your own needs.
 Supported color LUT formats:
 -----------------------
 
++------------------+--------------------+ -----------+
 | Source format    | Destination format | Supported? |
-| ---------------- | ------------------ | ---------- |
++==================+====================+============+
 | Hald CLUT (.png) | 3D LUT (.3dl)      | Yes        |
++------------------+--------------------+------------+
 | Hald CLUT (.png) | Cube LUT (.cube)   | Yes        |
++------------------+--------------------+------------+
 | 3D LUT (.3dl)    | Hald CLUT (.png)   | No         |
++------------------+--------------------+------------+
 | 3D LUT (.3dl)    | Cube LUT (.cube)   | No         |
++------------------+--------------------+------------+
 | Cube LUT (.cube) | Hald CLUT (.png)   | No         |
++------------------+--------------------+------------+
 | Cube LUT (.cube) | 3D LUT (.3dl)      | No         |
++------------------+--------------------+------------+
 
 I built the framework for supporting the other formats, but I personally only
 needed to convert from Hald CLUT (.png) to other formats, so that is all I
