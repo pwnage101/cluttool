@@ -4,10 +4,10 @@ cluttool - create and convert 3D/color LUTs
 This tool is a sort of swiss army knife for color LUTs.  Color LUTs concisely
 describe linear color transformations that many video monitors and post
 production software can understand.  There are a relatively small number of
-color LUT file formats, such as 3D LUT (3DL) and Hald CLUT, but no one LUT
-format is used by every software and firmware system.  This tool may help you
-to convert between LUT formats, or generate new ones in the format that you
-need.
+color LUT file formats, such as 3D LUT (3DL), Cube LUT, and Hald CLUT, but no
+one LUT format is used by every software and firmware system.  This tool may
+help you to convert between LUT formats, or generate new ones in the format
+that you need.
 
 Not all LUTs are created equal
 ------------------------------
@@ -29,9 +29,19 @@ freely create your own color LUTs for your own needs.
 Supported color LUT formats:
 -----------------------
 
-* Hald CLUT (.png)
-* 3D LUT (.3dl)
-* Cube LUT (.cube)
+| Source format    | Destination format | Supported? |
+| ---------------- | ------------------ | ---------- |
+| Hald CLUT (.png) | 3D LUT (.3dl)      | Yes        |
+| Hald CLUT (.png) | Cube LUT (.cube)   | Yes        |
+| 3D LUT (.3dl)    | Hald CLUT (.png)   | No         |
+| 3D LUT (.3dl)    | Cube LUT (.cube)   | No         |
+| Cube LUT (.cube) | Hald CLUT (.png)   | No         |
+| Cube LUT (.cube) | 3D LUT (.3dl)      | No         |
+
+I built the framework for supporting the other formats, but I personally only
+needed to convert from Hald CLUT (.png) to other formats, so that is all I
+implemented.  The places in the code marked `raised NotImplementedError()`
+indicate where there is missing logic for the unimplemented conversions.
 
 Similar Tools
 -------------
@@ -40,7 +50,7 @@ Similar Tools
 
 https://github.com/spoilt-exile/3DLutConverter
 
-However, it only supports 
+However, it only supports...(TODO)
 
 References:
 -----------
