@@ -243,7 +243,7 @@ class ColorLUT(object):
 
         if scale_output:
             output_values = (
-                Value3D(output_value)*scaling_factor
+                output_value*scaling_factor
                 for output_value in output_values
             )
 
