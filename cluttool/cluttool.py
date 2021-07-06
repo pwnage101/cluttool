@@ -24,6 +24,9 @@ def fatal_error(message):
     click.echo(message)
     sys.exit(1)
 
+def is_perfect_six_root(n):
+    c = int(n**(1/6.))
+    return (c**6 == n) or ((c+1)**6 == n)
 
 def write_png(path, data, width, height, bit_depth):
     """
@@ -256,8 +259,8 @@ class ColorLUT(object):
             raise ValueError('Then given PNG file is greyscale. Refusing.')
         if meta['bitdepth'] not in (8, 16):
             raise ValueError('Then given PNG file specifies an unsupported bit depth. Refusing.')
-        width_is_power_of_two = (width & (width - 1)) == 0
-        if width != height or not width_is_power_of_two:
+        width_is_square_root_of_perfect_six_root = is_perfect_six_root(width**2)
+        if width != height or not width_is_square_root_of_perfect_six_root:
             raise ValueError('The given PNG file does not have appropriate Hald CLUT dimensions. Refusing.')
         sample_count = int(round((width**2)**(1./3)))
         input_domain = 2**meta['bitdepth']-1
