@@ -47,7 +47,7 @@ Supported color LUT formats:
 
 I built the framework to support all possible conversions, but I personally only
 needed to convert from Hald CLUT (.png) to cube and 3dl, so that is all I
-implemented.  The places in the code marked `raised NotImplementedError()`
+implemented.  The places in the code marked ``raise NotImplementedError()``
 indicate where there is missing logic for the unimplemented conversions.
 
 Similar Tools
