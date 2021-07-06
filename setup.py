@@ -9,6 +9,7 @@ setup(
         ]
     },
     install_requires=['click>=6.7<8.0'],
+    install_requires=load_requirements('requirements/base.in'),
     author="Troy Sankey",
     author_email="sankeytms@gmail.com",
     description="create and convert 3D/color LUTs",

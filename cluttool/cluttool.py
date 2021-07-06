@@ -64,6 +64,12 @@ class Value3D(object):
     def __str__(self):
         return 'Value3D({},{},{})'.format(*self.components)
 
+    def __bytes__(self):
+        return self.__str__()
+
+    def __repr__(self):
+        return self.__str__()
+
     def __iter__(self):
         return iter(self.components)
 
@@ -222,7 +228,7 @@ class ColorLUT(object):
 
         if interpolate_output:
             input_values = (
-                Value3D(idx)*self.input_domain/float(output_sample_count-1)
+                Value3D(idx)*(self.input_domain/float(output_sample_count-1))
                 for idx in indexes
             )
             output_values = (
@@ -298,7 +304,7 @@ class ColorLUT(object):
         output_domain = 1.0
         output_sample_count = self.sample_count
         color_value_gen = self.get_values_translated(
-            output_sample_count=self.sample_count,
+            output_sample_count=output_sample_count,
             output_domain=output_domain,
         )
         with open(dest, 'w') as destfile:
