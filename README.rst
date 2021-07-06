@@ -29,7 +29,7 @@ freely create your own color LUTs for your own needs.
 Supported color LUT formats:
 -----------------------
 
-+------------------+--------------------+ -----------+
++------------------+--------------------+------------+
 | Source format    | Destination format | Supported? |
 +==================+====================+============+
 | Hald CLUT (.png) | 3D LUT (.3dl)      | Yes        |
