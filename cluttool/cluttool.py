@@ -101,8 +101,8 @@ def index_3d(data, size, r_idx, g_idx, b_idx):
     """
     idx = (r_idx) + (size * g_idx) + (size**2 * b_idx)
     idx *= 3
-    click.echo('index_3d(): size, r_idx, g_idx, b_idx = {},{},{},{}'.format(size, r_idx, g_idx, b_idx))
-    click.echo('index_3d(): idx = {}'.format(idx))
+    # click.echo('index_3d(): size, r_idx, g_idx, b_idx = {},{},{},{}'.format(size, r_idx, g_idx, b_idx))
+    # click.echo('index_3d(): idx = {}'.format(idx))
     return data[idx:idx+3]
 
 
@@ -141,8 +141,8 @@ class ColorLUT(object):
         if not self.red_increments_fastest:
             r_idx, b_idx = b_idx, r_idx
         color_value = Value3D(index_3d(self.data, self.sample_count, r_idx, g_idx, b_idx))
-        click.echo('get_color_value_from_index(): r_idx,g_idx,b_idx = {},{},{}'.format(r_idx,g_idx,b_idx))
-        click.echo('get_color_value_from_index(): color_value = {}'.format(str(color_value)))
+        # click.echo('get_color_value_from_index(): r_idx,g_idx,b_idx = {},{},{}'.format(r_idx,g_idx,b_idx))
+        # click.echo('get_color_value_from_index(): color_value = {}'.format(str(color_value)))
         return color_value
 
     def get_interpolated_color_value(self, r_input, g_input, b_input):
