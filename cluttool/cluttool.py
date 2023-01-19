@@ -279,7 +279,12 @@ class ColorLUT(object):
         if meta['alpha']:
             raise ValueError('Then given PNG file contains an alpha channel. Refusing.')
         if meta['greyscale']:
-            raise ValueError('Then given PNG file is greyscale. Refusing.')
+            def triple_generator(d):
+                for val in d:
+                    yield val
+                    yield val
+                    yield val
+            data = array(data.typecode, triple_generator(data))
         if meta['bitdepth'] not in (8, 16):
             raise ValueError('Then given PNG file specifies an unsupported bit depth. Refusing.')
         width_is_square_root_of_perfect_six_root = is_perfect_six_root(width**2)
